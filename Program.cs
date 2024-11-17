@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics;
+using System.IO;
+using System.Xml.Linq;
 using UEFIReader;
 
 namespace QCCapsuleReader
@@ -142,6 +144,8 @@ namespace QCCapsuleReader
 
             bool oldVer = false;
 
+            Dictionary<Guid, string> GuidNameMapping = [];
+
             foreach (EFI efi in uefi.EFIs)
             {
                 if (efi.Guid == new Guid("C7340E65-0D5D-43D6-ABB7-39751D5EC8E7"))
@@ -185,25 +189,35 @@ namespace QCCapsuleReader
 
                         string FileName = (string.IsNullOrEmpty(Name2) || Name2.Contains('\0')) ? Name : $"{Name} {Name2}";
 
-                        foreach (EFI efi2 in uefi.EFIs)
+                        string NewFileName = FileName;
+
+                        int i = 1;
+                        while (GuidNameMapping.Any(x => x.Value == NewFileName))
                         {
-                            if (efi2.Guid == EFI_GUID)
-                            {
-                                Console.WriteLine($"Found {FileName} at offset {stream.Position:X8} with size {element.Length:X8}");
-
-                                byte[] buffer = efi2.SectionElements![0].DecompressedImage!;
-
-                                string filedst = Path.Combine(outputDirectory, $"{FileName}.bin");
-
-                                if (!Directory.Exists(Path.GetDirectoryName(filedst)))
-                                {
-                                    _ = Directory.CreateDirectory(Path.GetDirectoryName(filedst)!);
-                                }
-
-                                File.WriteAllBytes(filedst, buffer);
-                            }
+                            NewFileName = $"{FileName} ({++i})";
                         }
+
+                        Console.WriteLine($"Found {NewFileName} at offset {stream.Position:X8} with size {element.Length:X8}");
+
+                        GuidNameMapping.Add(EFI_GUID, NewFileName);
                     }
+                }
+            }
+
+            foreach (EFI efi2 in uefi.EFIs)
+            {
+                if (GuidNameMapping.TryGetValue(efi2.Guid, out string FileName))
+                {
+                    byte[] buffer = efi2.SectionElements![0].DecompressedImage!;
+
+                    string filedst = Path.Combine(outputDirectory, $"{FileName}.bin");
+
+                    if (!Directory.Exists(Path.GetDirectoryName(filedst)))
+                    {
+                        _ = Directory.CreateDirectory(Path.GetDirectoryName(filedst)!);
+                    }
+
+                    File.WriteAllBytes(filedst, buffer);
                 }
             }
         }
