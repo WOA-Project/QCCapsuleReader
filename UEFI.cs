@@ -380,10 +380,10 @@ namespace UEFIReader
                 throw new BadImageFormatException();
             }
 
-            /*if (!VerifyVolumeChecksum(Input, Offset))
+            if (!VerifyVolumeChecksum(Input, Offset))
             {
                 throw new BadImageFormatException();
-            }*/
+            }
 
             uint VolumeSize = ByteOperations.ReadUInt32(Input, Offset + 0x20); // TODO: This is actually a QWORD
             ushort VolumeHeaderSize = ByteOperations.ReadUInt16(Input, Offset + 0x30);
@@ -392,6 +392,12 @@ namespace UEFIReader
             uint FileHeaderOffset = Offset + VolumeHeaderSize;
 
             byte[] buffer = new byte[VolumeSize - VolumeHeaderSize];
+
+            if (FileHeaderOffset + buffer.Length > Input.Length)
+            {
+                Console.WriteLine($"Input Buffer is too small by {(FileHeaderOffset + buffer.Length) - Input.Length:X8} bytes.");
+            }
+
             Buffer.BlockCopy(Input, (int)FileHeaderOffset, buffer, 0, buffer.Length);
 
             return HandleFileLoop(buffer, 0, FileHeaderOffset);
@@ -793,7 +799,7 @@ namespace UEFIReader
             // This function only checks fixed checksum-values 0x55 and 0xAA.
 
             ushort FileHeaderSize = 0x18;
-            byte Attributes = ByteOperations.ReadUInt8(Image, Offset + 0x11);
+            byte Attributes = ByteOperations.ReadUInt8(Image, Offset + 0x13);
             ulong FileSize = ByteOperations.ReadUInt24(Image, Offset + 0x14);
 
             if (Attributes == 0x41)
