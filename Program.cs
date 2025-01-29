@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Xml.Linq;
 using UEFIReader;
 
@@ -184,10 +185,35 @@ namespace QCCapsuleReader
                         {
                             elementStream.Seek(0x4D4, SeekOrigin.Begin);
                             byte[] Name2Buffer = elementReader.ReadBytes(36 * 2);
-                            Name2 = System.Text.Encoding.Unicode.GetString(Name2Buffer).Trim('\0');
+                            Name2 = Encoding.Unicode.GetString(Name2Buffer).Trim('\0');
                         }
 
                         string FileName = (string.IsNullOrEmpty(Name2) || Name2.Contains('\0')) ? Name : $"{Name} {Name2}";
+
+                        if (FileName == "PLAT")
+                        {
+                            foreach (EFI efi2 in uefi.EFIs)
+                            {
+                                if (efi2.Guid == EFI_GUID)
+                                {
+                                    byte[] buffer = efi2.SectionElements![0].DecompressedImage!;
+                                    byte[] Header = buffer[0..4];
+
+                                    bool ASCII1 = (Header[0] >= 0x30 && Header[0] <= 0x39) || (Header[0] >= 0x41 && Header[0] <= 0x5A);
+                                    bool ASCII2 = (Header[1] >= 0x30 && Header[1] <= 0x39) || (Header[1] >= 0x41 && Header[1] <= 0x5A);
+                                    bool ASCII3 = (Header[2] >= 0x30 && Header[2] <= 0x39) || (Header[2] >= 0x41 && Header[2] <= 0x5A);
+                                    bool ASCII4 = (Header[3] >= 0x30 && Header[3] <= 0x39) || (Header[3] >= 0x41 && Header[3] <= 0x5A);
+
+                                    if (ASCII1 && ASCII2 && ASCII3 && ASCII4)
+                                    {
+                                        string name = Encoding.ASCII.GetString(Header).TrimEnd('\0');
+                                        FileName = "PLAT_" + name;
+                                    }
+
+                                    break;
+                                }
+                            }
+                        }
 
                         string NewFileName = FileName;
 
